@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const OMDB_API_KEY = '147f4932'; // <-- IMPORTANT: Replace with your OMDb API key
     const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
     const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
-    const JS_VERSION = '3.0.0-clientside';
+    const JS_VERSION = '3.0.1-clientside';
     const HTML_VERSION = '1.2.3';
 
     // This will hold the list of movie objects {id, watched}, loaded from an external file.
@@ -336,9 +336,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (importedData.title && importedData.title !== currentTitle) {
                         currentTitle = importedData.title;
                         mainTitle.textContent = currentTitle;
+                        saveMovieListToServer(); // Save the new title immediately
                     }
 
-                    const moviesToImport = importedData.filter(movie =>
+                    const moviesToImport = importedData.movies.filter(movie =>
                         movie && typeof movie.id === 'number' && !isNaN(movie.id)
                     ).map(movie => ({
                         id: movie.id,
@@ -619,6 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Handle year selection change
     yearSelect.addEventListener('change', async (event) => {
         const selectedYear = event.target.value;
+        localStorage.setItem('movieListCurrentListId', selectedYear);
         await loadMoviesForYear(selectedYear);
         renderMovieList();
     });
@@ -781,8 +783,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const option = new Option(list.title, list.id); // Use list.title for display
                     yearSelect.add(option);
                 });
-                // Default to 2025 if it exists, otherwise use the most recent year.
-                if (lists.some(list => list.id === '2025')) {
+                // Restore last selected list, or default to a sensible choice.
+                const savedListId = localStorage.getItem('movieListCurrentListId');
+                if (savedListId && lists.some(list => list.id === savedListId)) {
+                    currentYear = savedListId;
+                } else if (lists.some(list => list.id === '2025')) {
                     currentYear = '2025';
                 } else {
                     currentYear = lists[0].id;
