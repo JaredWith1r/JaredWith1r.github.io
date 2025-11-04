@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const watchedTally = document.getElementById('watched-tally');
     const addMovieBtn = document.getElementById('add-movie-btn');
     const importListBtn = document.getElementById('import-list-btn');
+    const exportJsonBtn = document.getElementById('export-json-btn');
     const importJsonBtn = document.getElementById('import-json-btn');
     const createListBtn = document.getElementById('create-list-btn');
     const deleteListBtn = document.getElementById('delete-list-btn');
@@ -325,10 +326,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const content = e.target.result;
                     const importedData = JSON.parse(content);
+                    
+                    // Validate that the imported data is an object with a 'movies' array
+                    if (typeof importedData !== 'object' || importedData === null || !Array.isArray(importedData.movies)) {
+                        throw new Error("JSON file is not in the expected format (e.g., {title: '...', movies: [...]}).");
+                    }
 
-                    // Validate that the imported data is an array
-                    if (!Array.isArray(importedData)) {
-                        throw new Error("JSON file is not a valid array of movies.");
+                    // Optionally update the current list's title if provided in the import
+                    if (importedData.title && importedData.title !== currentTitle) {
+                        currentTitle = importedData.title;
+                        mainTitle.textContent = currentTitle;
                     }
 
                     const moviesToImport = importedData.filter(movie =>
@@ -337,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         id: movie.id,
                         watched: !!movie.watched // Ensure 'watched' is a boolean
                     }));
-
+                    
                     if (moviesToImport.length === 0) {
                         alert("No valid movies found in the JSON file.");
                         return;
@@ -345,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const existingIds = new Set(movieList.map(movie => movie.id));
                     const newMovies = [];
-
+                    
                     moviesToImport.forEach(movie => {
                         if (!existingIds.has(movie.id)) {
                             newMovies.push(movie);
@@ -353,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
 
-                    movieList.push(...newMovies);
+                    movieList.push(...newMovies); // Add new movies to the current list
                     saveMovieListToServer();
                     renderMovieList();
                     alert(`${newMovies.length} new movies were imported successfully from the JSON file!`);
@@ -366,6 +373,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         fileInput.click(); // Open the file picker dialog
+    }
+
+    /**
+     * Exports the current movie list to a JSON file.
+     * The file will be named based on the current year and title, e.g., "2025_spoop_a_thon.json".
+     */
+    function exportMoviesToJson() {
+        if (movieList.length === 0) {
+            alert("Your current movie list is empty. Nothing to export.");
+            return;
+        }
+
+        const dataToExport = {
+            title: currentTitle,
+            movies: movieList.map(movie => ({ id: movie.id, watched: movie.watched }))
+        };
+
+        const jsonString = JSON.stringify(dataToExport, null, 4); // Pretty print JSON
+
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${currentYear}_${currentTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`; // Sanitize filename
+        document.body.appendChild(a); // Append to body to make it clickable in some browsers
+        a.click();
+        document.body.removeChild(a); // Clean up
+        URL.revokeObjectURL(url); // Release the object URL
+        alert("Movie list exported successfully!");
     }
 
     /**
@@ -599,6 +636,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle Import List button click
     importListBtn.addEventListener('click', importMovies);
+
+    // Handle Export to JSON button click
+    exportJsonBtn.addEventListener('click', exportMoviesToJson);
 
     // Handle Import from JSON button click
     importJsonBtn.addEventListener('click', importMoviesFromJson);
