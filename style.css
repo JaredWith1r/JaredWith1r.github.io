@@ -145,53 +145,6 @@ h1[contenteditable="true"] {
     background-color: #0097a7;
 }
 
-#import-list-btn {
-    background-color: #607d8b; /* Blue Grey */
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1em;
-    transition: background-color 0.3s;
-}
-
-#import-list-btn:hover {
-    background-color: #455a64; /* Darker Blue Grey */
-}
-
-#create-list-btn {
-    background-color: #3a7bd5;
-    width: 100%;
-    color: white;
-    border: 1px solid white;
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1em;
-    transition: background-color 0.3s;
-}
-
-#create-list-btn:hover {
-    background-color: #3a95d5;
-}
-
-#delete-list-btn {
-    background-color: #c0392b; /* Darker Red */
-    width: 100%;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1em;
-    transition: background-color 0.3s;
-}
-
-#delete-list-btn:hover {
-    background-color: #e74c3c; /* Lighter Red */
-}
-
 /* Dropdown Menu Styles */
 .dropdown-menu {
     position: relative;
@@ -220,11 +173,42 @@ h1[contenteditable="true"] {
     overflow: hidden;
 }
 
-.dropdown-content button {
+.dropdown-btn {
+    width: 100%;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.3s, opacity 0.3s;
     display: block;
     text-align: left;
     border-radius: 0;
     border-bottom: 1px solid #ddd;
+}
+
+.dropdown-btn:hover {
+    opacity: 0.9;
+}
+
+#import-list-btn {
+    background-color: #607d8b; /* Blue Grey */
+}
+
+#export-json-btn {
+    background-color: #4caf50; /* Green */
+}
+
+#import-json-btn {
+    background-color: #ff9800; /* Orange */
+}
+
+#create-list-btn {
+    background-color: #3a7bd5; /* Blue */
+}
+
+#delete-list-btn {
+    background-color: #c0392b; /* Red */
 }
 
 #movie-list {
