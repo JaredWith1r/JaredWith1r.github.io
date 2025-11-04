@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const OMDB_API_KEY = '147f4932'; // <-- IMPORTANT: Replace with your OMDb API key
     const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
     const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
-    const JS_VERSION = '2.5.1';
+    const JS_VERSION = '3.0.0-clientside';
     const HTML_VERSION = '1.2.3';
 
     // This will hold the list of movie objects {id, watched}, loaded from an external file.
@@ -43,22 +43,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * Loads the list of movies for a specific year from the server.
-     * @param {string} year - The year to load.
+     * @param {string} listId - The ID of the list to load (e.g., '2025').
      */
-    async function loadMoviesForYear(year) {
+    async function loadMoviesForYear(listId) {
         try {
-            const response = await fetch(`/api/movies/${year}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            const listKey = `movie-list-${listId}`;
+            const dataString = localStorage.getItem(listKey);
+            let data;
+            if (dataString) {
+                data = JSON.parse(dataString);
+            } else {
+                // If no list exists, create a default structure
+                data = { title: `Movie List ${listId}`, movies: [] };
             }
-            const data = await response.json();
             movieList = data.movies || [];
-            currentTitle = data.title || `Movie List ${year}`;
-            currentYear = year;
+            currentTitle = data.title || `Movie List ${listId}`;
+            currentYear = listId;
             mainTitle.textContent = currentTitle;
         } catch (error) {
-            console.error(`Could not load movie list for ${year}:`, error);
-            movieListContainer.innerHTML = `<p class="empty-list-message">Error: Could not load the movie list for ${year}.</p>`;
+            console.error(`Could not load movie list for ${listId} from localStorage:`, error);
+            movieListContainer.innerHTML = `<p class="empty-list-message">Error: Could not load the movie list for ${listId}.</p>`;
         }
     }
 
@@ -389,22 +393,15 @@ document.addEventListener('DOMContentLoaded', () => {
      * Saves the current state of the movie list to the server.
      */
     async function saveMovieListToServer() {
+        if (!currentYear) return;
         try {
-            const response = await fetch('/api/movies', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ year: currentYear, title: currentTitle, movies: movieList }),
-            });
-
-            if (!response.ok) {
-                throw new Error(`Server responded with status: ${response.status}`);
-            }
-            console.log("Movie list saved to server successfully.");
+            const listKey = `movie-list-${currentYear}`;
+            const dataToSave = { year: currentYear, title: currentTitle, movies: movieList };
+            localStorage.setItem(listKey, JSON.stringify(dataToSave));
+            console.log(`Movie list for ${currentYear} saved to localStorage.`);
         } catch (error) {
-            console.error('Failed to save movie list to server:', error);
-            alert('Error: Could not save changes to the server. Your changes will be lost on refresh.');
+            console.error('Failed to save movie list to localStorage:', error);
+            alert('Error: Could not save changes. Your changes may be lost on refresh.');
         }
     }
 
@@ -480,13 +477,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('html-version').textContent = `HTML: ${HTML_VERSION}`;
         document.getElementById('js-version').textContent = `JS: ${JS_VERSION}`;
         
-        try {
-            const response = await fetch('/api/version');
-            const data = await response.json();
-            document.getElementById('server-version').textContent = `Server: ${data.server}`;
-        } catch (error) {
-            console.error("Could not fetch server version:", error);
-            document.getElementById('server-version').textContent = 'Server: ???';
+        // Remove server version display
+        const serverVersionEl = document.getElementById('server-version');
+        if (serverVersionEl) {
+            serverVersionEl.remove();
         }
     }
 
@@ -546,27 +540,18 @@ document.addEventListener('DOMContentLoaded', () => {
     createListBtn.addEventListener('click', async () => {
         const year = prompt("Enter the year for the new list:", new Date().getFullYear());
         if (year && /^\d{4}$/.test(year)) {
-            try {
-                const response = await fetch('/api/years', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ year: year }),
-                });
-
-                const result = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(result.message || `Server responded with status: ${response.status}`);
-                }
-
-                alert(`Successfully created list: ${result.newList}`);
-                location.reload(); // Reload to see the new list in the dropdown
-            } catch (error) {
-                console.error('Failed to create new list:', error);
-                alert(`Error: Could not create the new list. ${error.message}`);
+            const listKey = `movie-list-${year}`;
+            if (localStorage.getItem(listKey)) {
+                alert(`A list for ${year} already exists.`);
+                return;
             }
+            const newListData = {
+                title: `Movie List ${year}`,
+                movies: []
+            };
+            localStorage.setItem(listKey, JSON.stringify(newListData));
+            alert(`Successfully created list for ${year}.`);
+            location.reload(); // Reload to see the new list in the dropdown
         } else if (year !== null) {
             alert("Invalid year. Please enter a 4-digit year.");
         }
@@ -577,16 +562,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const confirmation = confirm(`Are you sure you want to permanently delete the list for ${currentYear}? This cannot be undone.`);
         if (confirmation) {
             try {
-                const response = await fetch(`/api/movies/${currentYear}`, {
-                    method: 'DELETE',
-                });
-                if (!response.ok) {
-                    throw new Error(`Server responded with status: ${response.status}`);
-                }
+                const listKey = `movie-list-${currentYear}`;
+                localStorage.removeItem(listKey);
                 alert(`List for ${currentYear} has been deleted.`);
                 location.reload(); // Easiest way to reset the state
             } catch (error) {
-                console.error('Failed to delete movie list:', error);
+                console.error('Failed to delete movie list from localStorage:', error);
                 alert('Error: Could not delete the list.');
             }
         }
@@ -677,24 +658,33 @@ document.addEventListener('DOMContentLoaded', () => {
         setView(currentView); // Set initial view from localStorage
         // 1. Fetch available years and populate dropdown
         try {
-            const response = await fetch('/api/years');
-            const years = await response.json();
-            if (years.length > 0) {
-                years.forEach(list => {
-                    const option = new Option(list.title, list.id);
+            const lists = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('movie-list-')) {
+                    const listData = JSON.parse(localStorage.getItem(key));
+                    const listId = key.replace('movie-list-', '');
+                    lists.push({ id: listId, title: listData.title || `Movie List ${listId}` });
+                }
+            }
+            lists.sort((a, b) => b.id.localeCompare(a.id)); // Sort descending
+
+            if (lists.length > 0) {
+                lists.forEach(list => {
+                    const option = new Option(list.title, list.id); // Use list.title for display
                     yearSelect.add(option);
                 });
                 // Default to 2025 if it exists, otherwise use the most recent year.
                 if (years.some(list => list.id === '2025')) {
                     currentYear = '2025';
                 } else {
-                    currentYear = years[0].id;
+                    currentYear = lists[0].id;
                 }
                 yearSelect.value = currentYear; // Sync dropdown with the current year
                 console.log(`[initializeApp] Years loaded. Defaulting to ${currentYear}.`);
             } else {
-                mainTitle.textContent = "No Movie Lists Found";
-                console.log("[initializeApp] No year archives found.");
+                mainTitle.textContent = "No Movie Lists Found"; // Keep this for user feedback
+                console.log("[initializeApp] No movie lists found in localStorage.");
             }
         } catch (error) {
             console.error("Failed to fetch years:", error);
