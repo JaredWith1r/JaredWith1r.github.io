@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Annual Movie List</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="logo-area">
+            <div class="logo-container">
+                <img src="data/logo2.jpg" alt="Spoop-a-Thon Logo">
+            </div>
+        </div>
+        <div class="tally-container">
+            <div id="watched-tally">Watched: 0 / 0</div>
+        </div>
+        <h1 id="main-title" contenteditable="true" title="Click to edit title">Annual Movie List</h1>
+        <div class="controls-container">
+            <div class="archive-container">
+                <!-- <label for="year-select">Archive:</label> -->
+                <select id="year-select"></select>
+            </div>
+            <div class="view-switcher">
+                <button id="card-view-btn" class="view-btn" title="Switch to Card View">🎴 Cards</button>
+                <button id="list-view-btn" class="view-btn" title="Switch to List View">📋 List</button>
+            </div>
+            <div class="slider-container">
+                <label for="card-size-slider">Card Size</label>
+                <input type="range" id="card-size-slider" min="200" max="500" value="300" title="Adjust card size">
+            </div>
+            <button id="add-movie-btn">➕ Add a Movie to the List</button>
+            <div class="dropdown-menu">
+                <button id="actions-menu-btn" class="menu-btn">⚙️ List Actions</button>
+                <div id="actions-dropdown-content" class="dropdown-content">
+                    <button id="import-list-btn">📥 Import List</button>
+                    <button id="create-list-btn">➕ Create New List</button>
+                    <button id="delete-list-btn" title="Delete the current list">🗑️ Delete List</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <p id="loading-message">Loading initial movie data...</p>
+    <main id="movie-list"></main>
+
+    <div id="search-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-content" role="document">
+            <button class="close-btn" aria-label="Close search modal">&times;</button>
+            <h2 id="modal-title">Search TMDB</h2>
+            <div class="search-controls">
+                <label for="movie-search-input" class="visually-hidden">Movie Title</label>
+                <input type="text" id="movie-search-input" placeholder="Enter movie title..." name="search">
+                <button id="search-submit-btn">Search</button>
+            </div>
+            <div id="search-results">
+                </div>
+        </div>
+    </div>
+
+    <div id="details-modal" class="modal">
+        <div class="modal-content modal-content-details">
+            <button class="close-btn" aria-label="Close movie details">&times;</button>
+            <div id="details-modal-content-container">
+                <!-- Content will be injected by JavaScript -->
+                <p>Loading details...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+
+    <footer>
+        <div class="version-info">
+            <span id="html-version">HTML: 1.2.3</span>
+            <span id="js-version">JS: 2.5.1</span>
+            <span id="server-version">Server: 1.5.0</span>
+        </div>
+    </footer>
+</body>
+</html>
