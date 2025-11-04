@@ -5,8 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const OMDB_API_KEY = '147f4932'; // <-- IMPORTANT: Replace with your OMDb API key
     const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
     const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
-    const JS_VERSION = '3.0.1-clientside';
-    const HTML_VERSION = '1.2.3';
+    const JS_VERSION = '3.1.0';
+    const HTML_VERSION = '1.3.0';
 
     // This will hold the list of movie objects {id, watched}, loaded from an external file.
     let movieList = [];
