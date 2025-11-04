@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const watchedTally = document.getElementById('watched-tally');
     const addMovieBtn = document.getElementById('add-movie-btn');
     const importListBtn = document.getElementById('import-list-btn');
+    const importJsonBtn = document.getElementById('import-json-btn');
     const createListBtn = document.getElementById('create-list-btn');
     const deleteListBtn = document.getElementById('delete-list-btn');
     const actionsMenuBtn = document.getElementById('actions-menu-btn');
@@ -303,6 +304,69 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
+    /**
+     * Imports movies from a user-selected JSON file.
+     * The JSON file should contain an array of movie objects, e.g., [{"id": 123, "watched": false}].
+     * It merges new movies into the current list, avoiding duplicates.
+     */
+    function importMoviesFromJson() {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.json,application/json';
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                return; // User cancelled the dialog
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const content = e.target.result;
+                    const importedData = JSON.parse(content);
+
+                    // Validate that the imported data is an array
+                    if (!Array.isArray(importedData)) {
+                        throw new Error("JSON file is not a valid array of movies.");
+                    }
+
+                    const moviesToImport = importedData.filter(movie =>
+                        movie && typeof movie.id === 'number' && !isNaN(movie.id)
+                    ).map(movie => ({
+                        id: movie.id,
+                        watched: !!movie.watched // Ensure 'watched' is a boolean
+                    }));
+
+                    if (moviesToImport.length === 0) {
+                        alert("No valid movies found in the JSON file.");
+                        return;
+                    }
+
+                    const existingIds = new Set(movieList.map(movie => movie.id));
+                    const newMovies = [];
+
+                    moviesToImport.forEach(movie => {
+                        if (!existingIds.has(movie.id)) {
+                            newMovies.push(movie);
+                            existingIds.add(movie.id);
+                        }
+                    });
+
+                    movieList.push(...newMovies);
+                    saveMovieListToServer();
+                    renderMovieList();
+                    alert(`${newMovies.length} new movies were imported successfully from the JSON file!`);
+                } catch (error) {
+                    console.error("Error processing JSON file:", error);
+                    alert(`Failed to import from JSON file. Please ensure it's a valid JSON array of movies. Error: ${error.message}`);
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        fileInput.click(); // Open the file picker dialog
+    }
 
     /**
      * Imports a comma-separated list of TMDB IDs.
@@ -536,6 +600,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Handle Import List button click
     importListBtn.addEventListener('click', importMovies);
 
+    // Handle Import from JSON button click
+    importJsonBtn.addEventListener('click', importMoviesFromJson);
+
     // Handle Create New List button click
     createListBtn.addEventListener('click', async () => {
         const year = prompt("Enter the year for the new list:", new Date().getFullYear());
@@ -675,7 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     yearSelect.add(option);
                 });
                 // Default to 2025 if it exists, otherwise use the most recent year.
-                if (years.some(list => list.id === '2025')) {
+                if (lists.some(list => list.id === '2025')) {
                     currentYear = '2025';
                 } else {
                     currentYear = lists[0].id;
