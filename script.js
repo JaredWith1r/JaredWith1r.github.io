@@ -5,14 +5,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const OMDB_API_KEY = '147f4932'; // <-- IMPORTANT: Replace with your OMDb API key
     const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
     const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
-    const JS_VERSION = '3.1.0';
-    const HTML_VERSION = '1.3.0';
+    const JS_VERSION = '3.3.0';
+    const HTML_VERSION = '1.5.0';
 
     // This will hold the list of movie objects {id, watched}, loaded from an external file.
     let movieList = [];
     let currentTitle = '';
     let currentYear = '';
-    let currentView = localStorage.getItem('movieListView') || 'card';
+    let currentListId = ''; // NEW: Will hold the unique ID of the current list.
+    let currentView = localStorage.getItem('movieListView') || 'card'; // 'card' or 'list'
 
     // --- DOM Elements ---
     const movieListContainer = document.getElementById('movie-list');
@@ -52,15 +53,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const listKey = `movie-list-${listId}`;
             const dataString = localStorage.getItem(listKey);
             let data;
+
             if (dataString) {
                 data = JSON.parse(dataString);
             } else {
-                // If no list exists, create a default structure
-                data = { title: `Movie List ${listId}`, movies: [] };
+                throw new Error(`List with ID ${listId} not found in localStorage.`);
             }
             movieList = data.movies || [];
-            currentTitle = data.title || `Movie List ${listId}`;
-            currentYear = listId;
+            currentTitle = data.title || `Untitled List`;
+            currentYear = data.year; // Get year from the list object
+            currentListId = listId; // Set the current unique ID
             mainTitle.textContent = currentTitle;
         } catch (error) {
             console.error(`Could not load movie list for ${listId} from localStorage:`, error);
@@ -76,6 +78,13 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     async function fetchMovieDetails(tmdbId) {
         try {
+            const cacheKey = `movie-details-${tmdbId}`;
+            const cachedDataString = localStorage.getItem(cacheKey);
+            if (cachedDataString) {
+                // Data is in cache, parse and return it.
+                return JSON.parse(cachedDataString);
+            }
+
             // 1. Fetch main details
             const detailsUrl = `${TMDB_BASE_URL}/movie/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`;
             const detailsResponse = await fetch(detailsUrl);
@@ -116,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const director = credits.crew.find(member => member.job === 'Director');
             const directorName = director ? director.name : 'N/A';
 
-            return {
+            const movieDataToReturn = {
                 id: movieDetails.id,
                 title: movieDetails.title,
                 release_year: movieDetails.release_date ? movieDetails.release_date.substring(0, 4) : 'N/A',
@@ -126,6 +135,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 rottenTomatoesScore: rottenTomatoesScore,
                 imdbScore: imdbScore
             };
+
+            // Save the complete data to cache for future use.
+            try {
+                localStorage.setItem(cacheKey, JSON.stringify(movieDataToReturn));
+            } catch (e) {
+                console.error("Failed to cache movie details. LocalStorage might be full.", e);
+            }
+
+            return movieDataToReturn;
         } catch (error) {
             console.error(`Error fetching movie details for ID ${tmdbId}:`, error);
             return null;
@@ -495,12 +513,12 @@ document.addEventListener('DOMContentLoaded', () => {
      * Saves the current state of the movie list to the server.
      */
     async function saveMovieListToServer() {
-        if (!currentYear) return;
+        if (!currentListId) return;
         try {
-            const listKey = `movie-list-${currentYear}`;
-            const dataToSave = { year: currentYear, title: currentTitle, movies: movieList };
+            const listKey = `movie-list-${currentListId}`;
+            const dataToSave = { id: currentListId, year: currentYear, title: currentTitle, movies: movieList };
             localStorage.setItem(listKey, JSON.stringify(dataToSave));
-            console.log(`Movie list for ${currentYear} saved to localStorage.`);
+            console.log(`Movie list ${currentListId} saved to localStorage.`);
         } catch (error) {
             console.error('Failed to save movie list to localStorage:', error);
             alert('Error: Could not save changes. Your changes may be lost on refresh.');
@@ -648,32 +666,35 @@ document.addEventListener('DOMContentLoaded', () => {
     // Handle Create New List button click
     createListBtn.addEventListener('click', async () => {
         const year = prompt("Enter the year for the new list:", new Date().getFullYear());
-        if (year && /^\d{4}$/.test(year)) {
-            const listKey = `movie-list-${year}`;
-            if (localStorage.getItem(listKey)) {
-                alert(`A list for ${year} already exists.`);
-                return;
-            }
+        const title = prompt("Enter a title for the new list:", `New List for ${year}`);
+
+        if (year && /^\d{4}$/.test(year) && title) {
+            const uniqueId = Date.now(); // Use timestamp for a unique ID
+            const listKey = `movie-list-${uniqueId}`;
+            
             const newListData = {
-                title: `Movie List ${year}`,
+                id: uniqueId,
+                year: year,
+                title: title,
                 movies: []
             };
             localStorage.setItem(listKey, JSON.stringify(newListData));
-            alert(`Successfully created list for ${year}.`);
+            alert(`Successfully created list "${title}" for ${year}.`);
             location.reload(); // Reload to see the new list in the dropdown
-        } else if (year !== null) {
+        } else if (year !== null || title !== null) {
+            // User didn't cancel everything
             alert("Invalid year. Please enter a 4-digit year.");
         }
     });
 
     // Handle Delete List button click
     deleteListBtn.addEventListener('click', async () => {
-        const confirmation = confirm(`Are you sure you want to permanently delete the list for ${currentYear}? This cannot be undone.`);
+        const confirmation = confirm(`Are you sure you want to permanently delete the list "${currentTitle}"? This cannot be undone.`);
         if (confirmation) {
             try {
-                const listKey = `movie-list-${currentYear}`;
+                const listKey = `movie-list-${currentListId}`;
                 localStorage.removeItem(listKey);
-                alert(`List for ${currentYear} has been deleted.`);
+                alert(`List "${currentTitle}" has been deleted.`);
                 location.reload(); // Easiest way to reset the state
             } catch (error) {
                 console.error('Failed to delete movie list from localStorage:', error);
@@ -773,22 +794,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (key.startsWith('movie-list-')) {
                     const listData = JSON.parse(localStorage.getItem(key));
                     const listId = key.replace('movie-list-', '');
-                    lists.push({ id: listId, title: listData.title || `Movie List ${listId}` });
+                    lists.push({ id: listId, title: listData.title || `Untitled List`, year: listData.year });
                 }
             }
-            lists.sort((a, b) => b.id.localeCompare(a.id)); // Sort descending
+            lists.sort((a, b) => b.year.localeCompare(a.year) || a.title.localeCompare(b.title)); // Sort by year desc, then title asc
 
             if (lists.length > 0) {
                 lists.forEach(list => {
-                    const option = new Option(list.title, list.id); // Use list.title for display
+                    const option = new Option(`${list.year}: ${list.title}`, list.id); // Show "YEAR: Title"
                     yearSelect.add(option);
                 });
                 // Restore last selected list, or default to a sensible choice.
                 const savedListId = localStorage.getItem('movieListCurrentListId');
                 if (savedListId && lists.some(list => list.id === savedListId)) {
-                    currentYear = savedListId;
-                } else if (lists.some(list => list.id === '2025')) {
-                    currentYear = '2025';
+                    currentListId = savedListId;
+                } else if (lists.some(list => list.year === '2025')) { // Fallback to a 2025 list if one exists
+                    const list2025 = lists.find(list => list.year === '2025');
+                    currentListId = list2025.id;
                 } else {
                     currentYear = lists[0].id;
                 }
@@ -804,11 +826,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 2. Load and render movies ONLY if a year was successfully determined
-        if (currentYear) {
-            console.log(`[initializeApp] Loading movies for ${currentYear}...`);
+        if (currentListId) {
+            console.log(`[initializeApp] Loading movies for list ID ${currentListId}...`);
             movieListContainer.style.setProperty('--card-min-width', `${cardSizeSlider.value}px`);
-            await loadMoviesForYear(currentYear);
-            console.log(`[initializeApp] Movie list for ${currentYear} loaded. Rendering...`);
+            await loadMoviesForYear(currentListId);
+            console.log(`[initializeApp] Movie list for ${currentListId} loaded. Rendering...`);
             renderMovieList();
         }
         displayVersionNumbers();
